@@ -145,9 +145,28 @@ function getDomainsForPeriod(period) {
   return { domains, total };
 }
 
+// Returns the earliest M/D/YYYY date string across all site entries,
+// converted to a human-readable string like "Mar 15, 2024"
+function getEarliestDate() {
+  let earliest = null;
+  for (const [key, value] of Object.entries(allData)) {
+    if (!key.startsWith('site:')) continue;
+    for (const day of (value.days || [])) {
+      if (!day.date) continue;
+      const [m, d, y] = day.date.split('/').map(Number);
+      const ts = new Date(y, m - 1, d).getTime();
+      if (earliest === null || ts < earliest) earliest = ts;
+    }
+  }
+  if (!earliest) return null;
+  return new Date(earliest).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
 // ─── Render ───────────────────────────────────────────────────────────────────
 
 function render() {
+  // Don't rebuild the table while a limit editor is open — it would close it
+  if (document.querySelector('.limit-editor.open')) return;
   const now = new Date();
   document.getElementById('headerDate').textContent =
     now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
@@ -155,7 +174,12 @@ function render() {
   const { domains, total } = getDomainsForPeriod(currentPeriod);
 
   document.getElementById('statTotal').textContent = formatTime(total);
-  document.getElementById('statTotalSub').textContent = { day: 'today', week: 'this week', all: 'all time' }[currentPeriod];
+  if (currentPeriod === 'all') {
+    const since = getEarliestDate();
+    document.getElementById('statTotalSub').textContent = since ? `since ${since}` : 'all time';
+  } else {
+    document.getElementById('statTotalSub').textContent = { day: 'today', week: 'this week' }[currentPeriod];
+  }
   document.getElementById('statSites').textContent = domains.length;
   document.getElementById('statSitesSub').textContent = `unique domain${domains.length !== 1 ? 's' : ''}`;
 
@@ -181,12 +205,16 @@ function render() {
   }
 
   const maxSec = domains[0].seconds;
+  const todayIso = isoLocalDate(0);
   tbody.innerHTML = domains.map((item, i) => {
     const pct = total > 0 ? ((item.seconds / total) * 100).toFixed(1) : '0.0';
     const barWidth = Math.round((item.seconds / maxSec) * 100);
     const faviconHtml = `<img src="${faviconUrl(item.domain)}" class="favicon" data-fallback>`;
     const lim = limits[item.domain];
-    const isExceeded = lim && item.seconds >= lim.limitSecs;
+    // Always compare today's seconds against the daily limit,
+    // regardless of which period tab is active
+    const todaySeconds = allData[`day:${todayIso}:${item.domain}`] || 0;
+    const isExceeded = lim && todaySeconds >= lim.limitSecs;
     const limitLabel = lim
       ? `⏱ ${formatTime(lim.limitSecs)}`
       : `+ limit`;

@@ -64,8 +64,8 @@ Installing in Chrome:
 
 1. Download from Code -> Download zip.
 2. Unzip it in a folder that will be the home to your extension.
-3. Go to chrome://extensions in your browser
-4. Enable Developer mode (toggle, top-right)
-5. Click "Load unpacked" and select the folder containing the unzipped contents.
+3. Go to `chrome://extensions` in your browser.
+4. Enable **Developer mode** (toggle, top-right).
+5. Click **"Load unpacked"** and select the folder containing the unzipped contents.
 
 The clock icon will appear in your toolbar — _you're live!_

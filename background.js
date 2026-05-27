@@ -99,6 +99,22 @@ function formatMinutes(seconds) {
 //  "all:__total__"   → seconds
 //  "limits"          → { [domain]: { limitSecs: number, snoozeSecs: number } }
 
+// Records a visit only if today has no counter entry yet for this domain.
+// Used on tab switches to count "first visit today" without inflating
+// the counter for back-and-forth switching between open tabs.
+async function recordVisitIfFirstToday(domain, favicon) {
+  if (!domain) return;
+  const key = `site:${domain}`;
+  const result = await chrome.storage.local.get(key);
+  const entry = result[key] || { url: domain, favicon: favicon || '', summaryTime: 0, counter: 0, days: [] };
+  const today = todayDateString();
+  const dayEntry = entry.days.find(d => d.date === today);
+  // Only count if today has no visit yet
+  if (dayEntry && (dayEntry.counter || 0) > 0) return;
+  // Delegate to recordVisit which handles all the incrementing correctly
+  await recordVisit(domain, favicon);
+}
+
 async function recordVisit(domain, favicon) {
   if (!domain) return;
   const key = `site:${domain}`;
@@ -285,7 +301,12 @@ async function updateActiveTab(tabId, windowId) {
   try {
     creditAudibleGap('tab switch');
     const tab = await chrome.tabs.get(tabId);
-    activeDomain = getDomain(tab.url);
+    const newDomain = getDomain(tab.url);
+    // Count as a visit if this is the first time today switching to this domain
+    if (newDomain && newDomain !== activeDomain) {
+      recordVisitIfFirstToday(newDomain, sanitiseFavicon(tab.favIconUrl));
+    }
+    activeDomain = newDomain;
     activeFavicon = sanitiseFavicon(tab.favIconUrl);
     activeTabAudible = tab.audible || false;
     activeTabId = tabId;
