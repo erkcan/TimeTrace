@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TimeTrace — Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0c0c0f;
+      --surface: #15151a;
+      --surface2: #1c1c23;
+      --border: #25252f;
+      --accent: #c8f135;
+      --accent-dim: #7a9420;
+      --accent-glow: rgba(200, 241, 53, 0.12);
+      --text: #ededf0;
+      --muted: #5a5a6e;
+      --muted2: #3a3a4e;
+      --danger: #ff6b6b;
+      --blue: #6eb5ff;
+      --orange: #ffb347;
+    }
+
+    html, body { min-height: 100vh; background: var(--bg); color: var(--text); font-family: 'DM Mono', monospace; }
+
+    .app { max-width: 960px; margin: 0 auto; padding: 40px 24px 80px; }
+
+    /* ── Header ── */
+    .header {
+      display: flex; align-items: flex-end; justify-content: space-between;
+      margin-bottom: 40px; padding-bottom: 24px; border-bottom: 1px solid var(--border);
+    }
+    .logo { font-family: 'Syne', sans-serif; font-size: 32px; font-weight: 800; letter-spacing: -1px; color: var(--accent); }
+    .logo span { color: var(--muted); }
+    .header-sub { font-size: 11px; color: var(--muted); letter-spacing: 0.5px; }
+
+    .header-actions { display: flex; gap: 8px; align-items: center; }
+
+    .btn-header {
+      background: none; border: 1px solid var(--border); color: var(--muted);
+      font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 1px;
+      text-transform: uppercase; padding: 6px 14px; border-radius: 4px;
+      cursor: pointer; transition: all 0.15s;
+    }
+    .btn-header:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-header.danger:hover { border-color: var(--danger); color: var(--danger); }
+    .btn-header.accent { border-color: var(--accent-dim); color: var(--accent); }
+    .btn-header.accent:hover { background: var(--accent-glow); }
+
+    /* ── Tabs ── */
+    .tabs {
+      display: flex; gap: 4px; margin-bottom: 28px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 8px; padding: 4px; width: fit-content;
+    }
+    .tab-btn {
+      background: none; border: none; font-family: 'DM Mono', monospace;
+      font-size: 11px; letter-spacing: 0.5px; color: var(--muted);
+      padding: 8px 20px; border-radius: 5px; cursor: pointer; transition: all 0.15s;
+    }
+    .tab-btn:hover { color: var(--text); }
+    .tab-btn.active { background: var(--accent); color: #0c0c0f; font-weight: 500; }
+
+    /* ── Stat cards ── */
+    .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 28px; }
+    .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; }
+    .stat-label { font-size: 9px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--muted); margin-bottom: 8px; }
+    .stat-value { font-family: 'Syne', sans-serif; font-size: 28px; font-weight: 700; color: var(--text); letter-spacing: -0.5px; }
+    .stat-sub { font-size: 10px; color: var(--muted); margin-top: 4px; }
+
+    /* ── Chart ── */
+    .chart-section {
+      margin-bottom: 28px; background: var(--surface);
+      border: 1px solid var(--border); border-radius: 10px; padding: 20px 24px;
+    }
+    .chart-title { font-size: 9px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--muted); margin-bottom: 20px; }
+    .chart-bars { display: flex; align-items: flex-end; gap: 8px; height: 80px; }
+    .chart-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; height: 100%; justify-content: flex-end; }
+    .chart-bar { width: 100%; background: var(--border); border-radius: 3px 3px 0 0; min-height: 2px; transition: background 0.2s; }
+    .chart-bar.today { background: var(--accent); }
+    .chart-bar.has-data { background: var(--accent-dim); }
+    .chart-day-label { font-size: 9px; color: var(--muted); letter-spacing: 0.5px; }
+    .chart-day-label.today { color: var(--accent); }
+
+    /* ── Table ── */
+    .table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+    .table-header {
+      display: grid; grid-template-columns: 32px 1fr 120px 90px 90px;
+      padding: 10px 18px; background: var(--surface2); border-bottom: 1px solid var(--border);
+      font-size: 9px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--muted);
+    }
+    .table-header .col-time { text-align: right; }
+    .table-row {
+      display: grid; grid-template-columns: 32px 1fr 120px 90px 90px;
+      padding: 10px 18px; border-bottom: 1px solid var(--border);
+      align-items: center; transition: background 0.12s;
+    }
+    .table-row:last-child { border-bottom: none; }
+    .table-row:hover { background: var(--surface2); }
+    .row-rank { font-size: 10px; color: var(--muted2); }
+    .row-domain {
+      font-size: 12px; color: var(--text);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      padding-right: 12px; display: flex; align-items: center; gap: 7px;
+    }
+    .favicon { width: 14px; height: 14px; border-radius: 2px; flex-shrink: 0; object-fit: contain; }
+    .favicon-placeholder { width: 14px; height: 14px; border-radius: 2px; background: var(--border); flex-shrink: 0; }
+    .row-bar-wrap { padding-right: 16px; }
+    .bar-track { height: 3px; background: var(--border); border-radius: 3px; overflow: hidden; }
+    .bar-fill { height: 100%; background: var(--accent); border-radius: 3px; }
+    .row-time { font-size: 11px; color: var(--text); text-align: right; }
+    .row-pct { font-size: 10px; color: var(--muted); text-align: right; }
+
+    .empty-state { padding: 60px 24px; text-align: center; color: var(--muted); font-size: 12px; line-height: 1.8; }
+    .empty-state .big { font-family: 'Syne', sans-serif; font-size: 48px; margin-bottom: 12px; }
+    .loading { padding: 40px 24px; text-align: center; color: var(--muted); font-size: 11px; }
+
+
+
+    /* ── Settings bar ── */
+    .settings-bar {
+      display: flex; align-items: center; gap: 16px;
+      padding: 10px 18px; margin-bottom: 28px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 8px; font-size: 11px; color: var(--muted);
+    }
+    .settings-bar label { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+    .settings-bar input[type=number] {
+      width: 60px; background: var(--surface2); border: 1px solid var(--border);
+      color: var(--text); font-family: 'DM Mono', monospace; font-size: 11px;
+      padding: 3px 7px; border-radius: 4px; text-align: center;
+    }
+    .settings-bar input[type=number]:focus { outline: none; border-color: var(--accent); }
+    .settings-saved { color: var(--accent); font-size: 10px; opacity: 0; transition: opacity 0.3s; }
+    .settings-saved.show { opacity: 1; }
+
+    /* ── Limits ── */
+    .table-header,
+    .table-row { grid-template-columns: 32px 1fr 100px 80px 80px 130px; }
+
+    .limit-cell { display: flex; align-items: center; justify-content: flex-end; gap: 6px; }
+    .limit-badge {
+      font-size: 10px; color: var(--accent-dim); cursor: pointer;
+      border: 1px solid var(--border); border-radius: 4px;
+      padding: 2px 7px; transition: all 0.15s; white-space: nowrap;
+    }
+    .limit-badge:hover { border-color: var(--accent); color: var(--accent); }
+    .limit-badge.set { color: var(--accent); border-color: var(--accent-dim); }
+    .limit-badge.exceeded { color: var(--danger); border-color: var(--danger); }
+
+    .limit-editor {
+      display: none; grid-column: 1 / -1;
+      background: var(--surface2); border-top: 1px solid var(--border);
+      padding: 14px 18px; gap: 12px; align-items: flex-end; flex-wrap: wrap;
+    }
+    .limit-editor.open { display: flex; }
+    .limit-field { display: flex; flex-direction: column; gap: 5px; }
+    .limit-field label { font-size: 9px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--muted); }
+    .limit-field input {
+      background: var(--surface); border: 1px solid var(--border);
+      color: var(--text); font-family: 'DM Mono', monospace; font-size: 12px;
+      padding: 6px 10px; border-radius: 5px; width: 90px;
+      transition: border-color 0.15s;
+    }
+    .limit-field input:focus { outline: none; border-color: var(--accent); }
+    .limit-actions { display: flex; gap: 8px; padding-bottom: 1px; }
+    .limit-save { background: var(--accent); color: #0c0c0f; border: none; font-family: 'DM Mono', monospace; font-size: 10px; font-weight: 500; padding: 6px 14px; border-radius: 5px; cursor: pointer; transition: opacity 0.15s; }
+    .limit-save:hover { opacity: 0.85; }
+    .limit-remove { background: none; border: 1px solid var(--border); color: var(--muted); font-family: 'DM Mono', monospace; font-size: 10px; padding: 6px 14px; border-radius: 5px; cursor: pointer; transition: all 0.15s; }
+    .limit-remove:hover { border-color: var(--danger); color: var(--danger); }
+
+    /* ── Modals ── */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.75); z-index: 100;
+      align-items: center; justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 12px; padding: 28px 32px; max-width: 400px; width: 100%;
+    }
+    .modal h3 { font-family: 'Syne', sans-serif; font-size: 18px; margin-bottom: 10px; }
+    .modal h3.danger { color: var(--danger); }
+    .modal p { font-size: 11px; color: var(--muted); line-height: 1.7; margin-bottom: 20px; }
+    .modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
+
+    .btn { font-family: 'DM Mono', monospace; font-size: 11px; padding: 8px 18px; border-radius: 6px; border: 1px solid var(--border); cursor: pointer; transition: all 0.15s; }
+    .btn:disabled { opacity: 0.35; cursor: not-allowed; }
+    .btn-ghost { background: none; color: var(--muted); }
+    .btn-ghost:hover:not(:disabled) { color: var(--text); border-color: var(--text); }
+    .btn-danger { background: var(--danger); color: #fff; border-color: var(--danger); }
+    .btn-danger:hover { opacity: 0.85; }
+    .btn-primary { background: var(--accent); color: #0c0c0f; border-color: var(--accent); font-weight: 500; }
+    .btn-primary:hover:not(:disabled) { opacity: 0.9; }
+
+    /* ── Import modal specifics ── */
+    .drop-zone {
+      border: 1px dashed var(--border); border-radius: 8px;
+      padding: 24px; text-align: center; cursor: pointer;
+      transition: all 0.15s; margin-bottom: 16px;
+      color: var(--muted); font-size: 11px; line-height: 1.8;
+    }
+    .drop-zone:hover, .drop-zone.dragover { border-color: var(--accent); color: var(--accent); background: var(--accent-glow); }
+    .drop-zone .drop-icon { font-size: 28px; margin-bottom: 8px; }
+    #importFileName { font-size: 10px; color: var(--accent-dim); margin-top: 4px; }
+
+    .import-mode { margin-bottom: 20px; }
+    .import-mode-label { font-size: 9px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--muted); margin-bottom: 10px; }
+    .radio-group { display: flex; flex-direction: column; gap: 8px; }
+    .radio-option { display: flex; align-items: flex-start; gap: 10px; cursor: pointer; }
+    .radio-option input[type="radio"] { margin-top: 2px; accent-color: var(--accent); flex-shrink: 0; }
+    .radio-text { font-size: 11px; color: var(--text); line-height: 1.5; }
+    .radio-text small { display: block; color: var(--muted); font-size: 10px; margin-top: 2px; }
+
+    /* ── Toast ── */
+    .toast {
+      position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%) translateY(20px);
+      background: var(--surface2); border: 1px solid var(--border);
+      color: var(--text); font-size: 11px; padding: 10px 20px;
+      border-radius: 8px; opacity: 0; transition: all 0.25s; z-index: 200;
+      pointer-events: none; white-space: nowrap;
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    .toast.success { border-color: var(--accent-dim); color: var(--accent); }
+    .toast.error { border-color: var(--danger); color: var(--danger); }
+
+    /* ── Donut chart ── */
+    .donut-section {
+      margin-bottom: 28px; background: var(--surface);
+      border: 1px solid var(--border); border-radius: 10px;
+      padding: 20px 24px;
+    }
+    .donut-section.hidden { display: none; }
+    .donut-title { font-size: 9px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--muted); margin-bottom: 20px; }
+    .donut-layout { display: flex; align-items: center; gap: 36px; }
+    .donut-canvas-wrap { flex-shrink: 0; position: relative; width: 200px; height: 200px; }
+    #donutCanvas { width: 200px; height: 200px; }
+    .donut-legend { flex: 1; display: flex; flex-direction: column; gap: 7px; min-width: 0; }
+    .legend-item {
+      display: flex; align-items: center; gap: 9px;
+      font-size: 11px; color: var(--text); cursor: default;
+      border-radius: 4px; padding: 3px 6px; margin: 0 -6px;
+      transition: background 0.12s;
+    }
+    .legend-item:hover { background: var(--surface2); }
+    .legend-item.dimmed { opacity: 0.35; }
+    .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .legend-name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .legend-time { font-size: 10px; color: var(--muted); flex-shrink: 0; }
+    .legend-pct  { font-size: 10px; color: var(--muted); flex-shrink: 0; width: 36px; text-align: right; }
+
+    /* ── Debug slider ── */
+    .debug-slider-wrap { display: flex; flex-direction: column; gap: 3px; }
+    .debug-slider-wrap input[type=range] {
+      -webkit-appearance: none; appearance: none;
+      width: 120px; height: 4px; border-radius: 2px;
+      background: var(--border); outline: none; cursor: pointer;
+    }
+    .debug-slider-wrap input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none; appearance: none;
+      width: 14px; height: 14px; border-radius: 50%;
+      background: var(--accent); cursor: pointer;
+      transition: background 0.15s;
+    }
+    .debug-slider-wrap input[type=range]::-webkit-slider-thumb:hover { background: var(--accent-dim); }
+    .debug-slider-labels {
+      display: flex; justify-content: space-between;
+      font-size: 8px; color: var(--muted); letter-spacing: 0.5px;
+      width: 120px;
+    }
+
+    /* ── Debug panel ── */
+    .debug-panel {
+      display: none; margin-bottom: 28px;
+      background: #0a0a0d; border: 1px solid var(--accent-dim);
+      border-radius: 10px; overflow: hidden;
+    }
+    .debug-panel.visible { display: block; }
+    .debug-panel-header {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 10px 16px; background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      font-size: 9px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--accent-dim);
+    }
+    .debug-clear { background: none; border: none; color: var(--muted); font-family: 'DM Mono', monospace; font-size: 9px; cursor: pointer; letter-spacing: 1px; text-transform: uppercase; }
+    .debug-clear:hover { color: var(--danger); }
+    .debug-log {
+      height: 240px; overflow-y: auto;
+      padding: 8px 0; font-size: 10px; line-height: 1.7;
+    }
+    .debug-log::-webkit-scrollbar { width: 3px; }
+    .debug-log::-webkit-scrollbar-thumb { background: var(--border); }
+    .debug-entry { display: flex; gap: 12px; padding: 1px 16px; }
+    .debug-entry:hover { background: var(--surface); }
+    .debug-time { color: var(--muted); flex-shrink: 0; }
+    .debug-msg { color: var(--text); }
+    .debug-msg.track  { color: #a8e063; }
+    .debug-msg.pause  { color: var(--orange); }
+    .debug-msg.audible { color: var(--blue); }
+    .debug-msg.limit  { color: var(--danger); }
+    .debug-msg.tab    { color: var(--muted); }
+    .debug-empty { padding: 20px 16px; color: var(--muted); font-size: 11px; text-align: center; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="header">
+      <div>
+        <div class="logo">Time<span>Trace</span></div>
+        <div class="header-sub" id="headerDate"></div>
+      </div>
+      <div class="header-actions">
+        <button class="btn-header" id="importBtn">↑ Import</button>
+        <button class="btn-header accent" id="exportBtn">↓ Export</button>
+        <button class="btn-header danger" id="clearBtn">Clear data</button>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab-btn active" data-period="day">Today</button>
+      <button class="tab-btn" data-period="week">This week</button>
+      <button class="tab-btn" data-period="all">All time</button>
+    </div>
+
+
+    <div class="settings-bar">
+      <label>
+        Inactivity timeout:
+        <input type="number" id="inactivityInput" min="1" max="120" value="5">
+        minutes
+      </label>
+      <span class="settings-saved" id="settingsSaved">Saved ✓</span>
+      <div style="margin-left:auto;display:flex;align-items:center;gap:10px;">
+        <span style="font-size:10px;color:var(--muted)">Debug:</span>
+        <div class="debug-slider-wrap">
+          <input type="range" id="debugLevel" min="0" max="2" step="1" value="0">
+          <div class="debug-slider-labels">
+            <span>Off</span><span>Normal</span><span>Verbose</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+    <div class="debug-panel" id="debugPanel">
+      <div class="debug-panel-header">
+        <span>🐛 Debug log</span>
+        <button class="debug-clear" id="debugClear">Clear</button>
+      </div>
+      <div id="debugHeartbeat" style="padding:6px 16px;font-size:9px;color:#ff9f43;border-bottom:1px solid var(--border);letter-spacing:0.3px;">Waiting for heartbeat...</div>
+      <div class="debug-log" id="debugLog">
+        <div class="debug-empty">Debug log is empty. Start browsing to see events.</div>
+      </div>
+    </div>
+
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-label">Total time</div>
+        <div class="stat-value" id="statTotal">—</div>
+        <div class="stat-sub" id="statTotalSub"></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Sites visited</div>
+        <div class="stat-value" id="statSites">—</div>
+        <div class="stat-sub" id="statSitesSub"></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Top site</div>
+        <div class="stat-value" id="statTop" style="font-size:16px;padding-top:6px;">—</div>
+        <div class="stat-sub" id="statTopSub"></div>
+      </div>
+    </div>
+
+    <div class="chart-section" id="chartSection" style="display:none">
+      <div class="chart-title">Daily breakdown — last 7 days</div>
+      <div class="chart-bars" id="chartBars"></div>
+    </div>
+
+
+    <div class="donut-section hidden" id="donutSection">
+      <div class="donut-title">Time distribution — top sites</div>
+      <div class="donut-layout">
+        <div class="donut-canvas-wrap">
+          <canvas id="donutCanvas" width="400" height="400"></canvas>
+        </div>
+        <div class="donut-legend" id="donutLegend"></div>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <div class="table-header">
+        <div>#</div><div>Domain</div><div>Bar</div>
+        <div class="col-time">Time spent</div>
+        <div class="col-time">% of total</div>
+        <div class="col-time">Daily limit</div>
+      </div>
+      <div class="table-body" id="tableBody"><div class="loading">Loading…</div></div>
+    </div>
+  </div>
+
+  <!-- Clear modal -->
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="modal">
+      <h3 class="danger">Clear all data?</h3>
+      <p>This will permanently delete all tracked time data. This cannot be undone.</p>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" id="cancelClear">Cancel</button>
+        <button class="btn btn-danger" id="confirmClear">Yes, delete everything</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Import modal -->
+  <div class="modal-overlay" id="importModal">
+    <div class="modal">
+      <h3>Import data</h3>
+      <p>Import a TimeTrace JSON export file.</p>
+
+      <div class="drop-zone" id="importDropZone">
+        <div class="drop-icon">📂</div>
+        Click to choose a file, or drag &amp; drop here
+        <div id="importFileName">No file chosen</div>
+      </div>
+      <input type="file" id="importFile" accept=".json,application/json" style="display:none">
+
+      <div class="import-mode">
+        <div class="import-mode-label">Import mode</div>
+        <div class="radio-group">
+          <label class="radio-option">
+            <input type="radio" name="importMode" value="merge" checked>
+            <div class="radio-text">
+              Merge with existing data
+              <small>Adds imported times and visit counts on top of your current data. Duplicate days are summed.</small>
+            </div>
+          </label>
+          <label class="radio-option">
+            <input type="radio" name="importMode" value="replace">
+            <div class="radio-text">
+              Replace all data
+              <small>Clears everything first, then loads the imported file. Cannot be undone.</small>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn btn-ghost" id="cancelImport">Cancel</button>
+        <button class="btn btn-primary" id="doImportBtn" disabled>Import</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast"></div>
+
+  <script src="dashboard.js"></script>
+</body>
+</html>
