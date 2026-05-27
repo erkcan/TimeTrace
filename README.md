@@ -57,3 +57,15 @@ A personal Chrome extension for tracking time spent on websites. Designed for lo
 ## Data storage
 
 All data is stored in `chrome.storage.local`, keyed to the extension ID. It is never transmitted anywhere. Removing the extension permanently deletes all data — export before uninstalling.
+
+## How to install
+
+Installing in Chrome:
+
+1. Download from Code -> Download zip.
+2. Unzip it in a folder that will be the home to your extension.
+3. Go to chrome://extensions in your browser
+4. Enable Developer mode (toggle, top-right)
+5. Click "Load unpacked" and select the folder containing the unzipped contents.
+
+The clock icon will appear in your toolbar — _you're live!_
