@@ -138,6 +138,29 @@
     .settings-saved { color: var(--accent); font-size: 10px; opacity: 0; transition: opacity 0.3s; }
     .settings-saved.show { opacity: 1; }
 
+
+    /* ── Table search ── */
+    .table-search {
+      background: none; border: none; outline: none;
+      font-family: 'DM Mono', monospace; font-size: 11px;
+      color: var(--text); width: 100%; padding: 0;
+      letter-spacing: 0.3px;
+    }
+    .table-search::placeholder { color: var(--muted2); }
+    .search-col {
+      display: flex; align-items: center; gap: 6px;
+      border-bottom: 1px solid var(--accent-dim);
+      padding-bottom: 2px; cursor: text; margin-right: 16px;
+    }
+    .search-icon { color: var(--muted); font-size: 10px; flex-shrink: 0; }
+    .search-clear {
+      background: none; border: none; color: var(--muted); font-size: 10px;
+      cursor: pointer; padding: 0; flex-shrink: 0; line-height: 1;
+      display: none;
+    }
+    .search-clear.visible { display: block; }
+    .search-clear:hover { color: var(--danger); }
+
     /* ── Limits ── */
     .table-header,
     .table-row { grid-template-columns: 32px 1fr 100px 80px 80px 130px; }
@@ -151,6 +174,12 @@
     .limit-badge:hover { border-color: var(--accent); color: var(--accent); }
     .limit-badge.set { color: var(--accent); border-color: var(--accent-dim); }
     .limit-badge.exceeded { color: var(--danger); border-color: var(--danger); }
+    .limit-badge.partial { color: var(--orange); border-color: var(--orange); }
+    .merged-subdomains { padding: 8px 0 4px; width: 100%; }
+    .merged-subdomain-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--border); }
+    .merged-subdomain-row:last-child { border-bottom: none; }
+    .merged-subdomain-name { font-size: 11px; color: var(--text); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .merged-subdomain-time { font-size: 10px; color: var(--muted); flex-shrink: 0; width: 55px; text-align: right; }
 
     .limit-editor {
       display: none; grid-column: 1 / -1;
@@ -228,6 +257,20 @@
     .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
     .toast.success { border-color: var(--accent-dim); color: var(--accent); }
     .toast.error { border-color: var(--danger); color: var(--danger); }
+
+
+    /* ── Chart tooltip ── */
+    .chart-tooltip {
+      position: fixed; pointer-events: none; z-index: 50;
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 6px; padding: 8px 14px;
+      font-size: 11px; color: var(--text); white-space: nowrap;
+      opacity: 0; transition: opacity 0.15s;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+      line-height: 1.9;
+    }
+    .chart-tooltip.visible { opacity: 1; }
+    .chart-tooltip div { color: var(--text); }
 
     /* ── Donut chart ── */
     .donut-section {
@@ -335,6 +378,10 @@
         minutes
       </label>
       <span class="settings-saved" id="settingsSaved">Saved ✓</span>
+      <label style="display:flex;align-items:center;gap:7px;cursor:pointer;font-size:11px;color:var(--muted)">
+        <input type="checkbox" id="mergeDomainsToggle" style="accent-color:var(--accent)">
+        Merge subdomains
+      </label>
       <div style="margin-left:auto;display:flex;align-items:center;gap:10px;">
         <span style="font-size:10px;color:var(--muted)">Debug:</span>
         <div class="debug-slider-wrap">
@@ -377,7 +424,7 @@
     </div>
 
     <div class="chart-section" id="chartSection" style="display:none">
-      <div class="chart-title">Daily breakdown — last 7 days</div>
+      <div class="chart-title" id="chartTitle">Daily breakdown — last 7 days</div>
       <div class="chart-bars" id="chartBars"></div>
     </div>
 
@@ -394,7 +441,7 @@
 
     <div class="table-wrap">
       <div class="table-header">
-        <div>#</div><div>Domain</div><div>Bar</div>
+        <div>#</div><div class="search-col"><span class="search-icon">⌕</span><input type="text" class="table-search" id="tableSearch" placeholder="Search domains..."><button class="search-clear" id="searchClear">✕</button></div><div>Bar</div>
         <div class="col-time">Time spent</div>
         <div class="col-time">% of total</div>
         <div class="col-time">Daily limit</div>
@@ -458,6 +505,7 @@
   <!-- Toast -->
   <div class="toast" id="toast"></div>
 
+  <div class="chart-tooltip" id="chartTooltip"></div>
   <script src="dashboard.js"></script>
 </body>
 </html>

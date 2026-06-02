@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "TimeTrace",
-  "version": "1.3.23",
+  "version": "1.3.39",
   "description": "Track time spent on websites \u2014 daily, weekly, and all-time.",
   "permissions": [
     "tabs",
