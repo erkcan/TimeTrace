@@ -58,6 +58,16 @@
       border: 1px solid var(--border);
       border-radius: 20px;
       padding: 3px 10px;
+      transition: all 0.15s;
+    }
+    .status-pill.clickable {
+      cursor: pointer;
+      border-color: var(--accent-dim);
+      color: var(--accent);
+    }
+    .status-pill.clickable:hover {
+      background: var(--accent-glow);
+      border-color: var(--accent);
     }
 
     .status-dot {
@@ -255,7 +265,7 @@
 <body>
   <div class="header">
     <div class="logo">Time<span>Trace</span></div>
-    <div class="status-pill">
+    <div class="status-pill" id="statusPill">
       <div class="status-dot" id="statusDot"></div>
       <span id="statusText">loading</span>
     </div>

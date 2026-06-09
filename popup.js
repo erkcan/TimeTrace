@@ -23,26 +23,38 @@ async function loadPopup() {
   const statusText = document.getElementById('statusText');
   const currentDomain = document.getElementById('currentDomain');
 
+  const pill = document.getElementById('statusPill');
+
   if (status.idle) {
     dot.className = 'status-dot idle';
     statusText.textContent = 'idle';
     currentDomain.textContent = 'User idle';
     currentDomain.className = 'current-domain none';
+    pill.classList.remove('clickable');
   } else if (status.inactive) {
     dot.className = 'status-dot idle';
-    statusText.textContent = 'inactive';
+    statusText.textContent = '▶ resume';
     currentDomain.textContent = status.domain || 'No active tab';
     currentDomain.className = 'current-domain none';
+    pill.classList.add('clickable');
+    pill.onclick = async () => {
+      await chrome.runtime.sendMessage({ type: 'RESET_INACTIVITY' });
+      loadPopup();
+    };
   } else if (status.domain) {
     dot.className = status.audible ? 'status-dot active audible' : 'status-dot active';
     statusText.textContent = status.audible ? 'tracking ♪' : 'tracking';
     currentDomain.textContent = status.domain;
     currentDomain.className = 'current-domain';
+    pill.classList.remove('clickable');
+    pill.onclick = null;
   } else {
     dot.className = 'status-dot';
     statusText.textContent = 'paused';
     currentDomain.textContent = 'No active tab';
     currentDomain.className = 'current-domain none';
+    pill.classList.remove('clickable');
+    pill.onclick = null;
   }
 
   // Get today's data

@@ -13,6 +13,90 @@ let lastInteractionTime = null;
 let isIdle = false;
 let inactivityTimeoutSec = DEFAULT_INACTIVITY_TIMEOUT_SEC;
 let keepAwakeActive = false;
+let currentIconState = null; // track last set state to avoid redundant redraws
+
+// ─── Dynamic icon ────────────────────────────────────────────────────────────
+//
+// States and colours:
+//   'tracking'  — green   #c8f135  (normal tracking)
+//   'audible'   — blue    #6fa8ff  (audio playing)
+//   'inactive'  — grey    #666677  (inactivity pause)
+//   'idle'      — orange  #ff9f43  (system idle)
+//   'none'      — muted   #3a3a4e  (no active tab)
+
+const ICON_COLORS = {
+  tracking: '#c8f135',
+  audible:  '#6fa8ff',
+  inactive: '#9999aa',
+  idle:     '#ff9f43',
+  none:     '#3a3a4e',
+};
+
+function drawIcon(color) {
+  const size = 32;
+  const canvas = new OffscreenCanvas(size, size);
+  const ctx = canvas.getContext('2d');
+  const cx = size / 2, cy = size / 2;
+  const r = size / 2 - 1;
+
+  // Background circle
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, 2 * Math.PI);
+  ctx.fillStyle = '#0e0e11';
+  ctx.fill();
+
+  // Coloured ring
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, 2 * Math.PI);
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2.5;
+  ctx.stroke();
+
+  // Clock hands
+  const innerR = r - 5;
+  // Hour hand (~10 o'clock)
+  const hAngle = -Math.PI / 2 - Math.PI / 3;
+  ctx.beginPath();
+  ctx.moveTo(cx, cy);
+  ctx.lineTo(cx + Math.cos(hAngle) * innerR * 0.55, cy + Math.sin(hAngle) * innerR * 0.55);
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2;
+  ctx.lineCap = 'round';
+  ctx.stroke();
+
+  // Minute hand (12 o'clock)
+  ctx.beginPath();
+  ctx.moveTo(cx, cy);
+  ctx.lineTo(cx, cy - innerR * 0.75);
+  ctx.stroke();
+
+  // Centre dot
+  ctx.beginPath();
+  ctx.arc(cx, cy, 2, 0, 2 * Math.PI);
+  ctx.fillStyle = color;
+  ctx.fill();
+
+  return ctx.getImageData(0, 0, size, size);
+}
+
+function setIcon(state) {
+  if (state === currentIconState) return;
+  currentIconState = state;
+  const color = ICON_COLORS[state] || ICON_COLORS.none;
+  const imageData = drawIcon(color);
+  chrome.action.setIcon({ imageData: { 32: imageData } });
+}
+
+function updateIcon() {
+  if (isIdle) { setIcon('idle'); return; }
+  if (!activeDomain) { setIcon('none'); return; }
+  if (activeTabAudible) { setIcon('audible'); return; }
+  if (lastInteractionTime) {
+    const inactiveSec = (Date.now() - lastInteractionTime) / 1000;
+    if (inactiveSec > inactivityTimeoutSec) { setIcon('inactive'); return; }
+  }
+  setIcon('tracking');
+}
 
 function requestKeepAwake() {
   if (keepAwakeActive) return;
@@ -265,6 +349,7 @@ async function tick() {
     if (silentSec > inactivityTimeoutSec) {
       dbg('pause', `${activeDomain} — silent & inactive for ${silentSec}s (threshold: ${inactivityTimeoutSec}s), not counting`);
       lastTickTime = now;
+      updateIcon();
       return;
     }
   }
@@ -277,6 +362,7 @@ async function tick() {
     }
   }
   lastTickTime = now;
+  updateIcon();
 }
 
 // ─── Tab / window tracking ───────────────────────────────────────────────────
@@ -314,6 +400,7 @@ async function updateActiveTab(tabId, windowId) {
     lastTickTime = Date.now();
     lastInteractionTime = Date.now();
     if (activeTabAudible) requestKeepAwake(); else releaseKeepAwake();
+    updateIcon();
     dbg('tab', `switched to ${activeDomain || 'none'} | audible=${activeTabAudible}`);
   } catch { activeDomain = null; activeFavicon = null; activeTabAudible = false; releaseKeepAwake(); }
 }
@@ -329,6 +416,19 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     lastTickTime = Date.now();
     lastInteractionTime = Date.now();
   }
+
+  // Option 2: tab title change as interaction signal
+  if (changeInfo.title && !changeInfo.url) {
+    lastInteractionTime = Date.now();
+    dbg('interact', `title changed: "${changeInfo.title}" — resetting inactivity timer`);
+  }
+
+  // Option 3: tab loading state change (background network activity) as interaction signal
+  if (changeInfo.status === 'loading' && !changeInfo.url) {
+    lastInteractionTime = Date.now();
+    dbg('interact', `tab loading (background request) — resetting inactivity timer`);
+  }
+
   if (tab.favIconUrl) activeFavicon = sanitiseFavicon(tab.favIconUrl);
   if ('audible' in changeInfo) {
     if (!changeInfo.audible) creditAudibleGap('audio stopped');
@@ -339,6 +439,7 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     } else {
       releaseKeepAwake();
     }
+    updateIcon();
     dbg('audible', `${activeDomain} audible changed → ${changeInfo.audible}`);
   }
   if (isNewDomain) recordVisit(newDomain, tab.favIconUrl || activeFavicon);
@@ -350,6 +451,7 @@ chrome.windows.onFocusChanged.addListener((windowId) => {
     activeDomain = null; activeFavicon = null; lastTickTime = null;
     dbg('focus', 'window lost focus (WINDOW_ID_NONE) — releasing wake lock');
     releaseKeepAwake();
+    updateIcon();
   } else {
     dbg('focus', `window focus changed to windowId=${windowId}`);
     chrome.tabs.query({ active: true, windowId }, (tabs) => {
@@ -364,6 +466,7 @@ chrome.idle.setDetectionInterval(IDLE_THRESHOLD_SEC);
 chrome.idle.onStateChanged.addListener((state) => {
   isIdle = state !== 'active';
   dbg('idle', `system idle state changed → ${state} | activeTabAudible=${activeTabAudible}`);
+  updateIcon();
   if (!isIdle) {
     if (activeTabAudible && activeDomain && lastTickTime) {
       // Credit the idle gap immediately while we know the full extent of it.
@@ -432,6 +535,13 @@ chrome.storage.onChanged.addListener((changes) => {
 // ─── Messages ────────────────────────────────────────────────────────────────
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+  if (msg.type === 'RESET_INACTIVITY') {
+    lastInteractionTime = Date.now();
+    updateIcon();
+    dbg('interact', 'inactivity reset by user via popup');
+    sendResponse({ ok: true });
+    return true;
+  }
   if (msg.type === 'GET_STATUS') {
     const inactiveSec = lastInteractionTime ? Math.round((Date.now() - lastInteractionTime) / 1000) : 0;
     const isInactive = !activeTabAudible && inactiveSec > inactivityTimeoutSec;

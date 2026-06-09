@@ -890,7 +890,7 @@ document.getElementById('doImportBtn').addEventListener('click', () => {
 // ─── Debug log ───────────────────────────────────────────────────────────────
 
 const TYPE_CLASS = { track: 'track', pause: 'pause', audible: 'audible', limit: 'limit', tab: 'tab' };
-const TICK_TYPES = new Set(['track', 'pause', 'tick']); // only shown at verbose level
+const TICK_TYPES = new Set(['track', 'pause', 'tick', 'interact']); // only shown at verbose level
 
 async function refreshDebugLog() {
   const response = await chrome.runtime.sendMessage({ type: 'GET_DEBUG_LOG' });
